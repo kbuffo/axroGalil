@@ -1,0 +1,13 @@
+Galil
+
+ethernet port to use on PC: Of the four ports near the bottom of the back of the PC, use the one that is not marked with a white, blue, or black sticker
+
+TCP/IPv4
+
+C1
+IP address: 192.168.42.100
+Subnet mask: 255.255.255.0
+
+C2
+IP address: 192.168.42.200
+Subnet mask: 255.255.255.0
