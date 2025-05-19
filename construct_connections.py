@@ -7,7 +7,7 @@ import pickle
 def construct_cells(cell_num_array, cell_trans_array=None, controllers=None, ao_pins=None, ai_pins=None):
     """
     Returns a list of cell objects
-    cell_num_array: a 1D or 2D array whose elements represent the cell numbers in the locations you want to assign. Cell numbers 
+    cell_num_array: a 2D array whose elements represent the cell numbers in the locations you want to assign. Cell numbers 
     start at 1.NaNs are allowed to in cell_num_array to form rugged or uneven cell arrangements.
     
     cell_trans_array (optional): represents is an array that is the same shape as cell num array that represents how the controllers
@@ -20,7 +20,7 @@ def construct_cells(cell_num_array, cell_trans_array=None, controllers=None, ao_
     cell_num_array and thus cell_trans_array=cell_num_array.
     
     controllers (optional): A list of ints that specify which controllers should be used. If controllers=None, controllers are gathered
-    from the controllers.controller_IP_address starting at 1.
+    from the controllers.controllers starting at 1.
     
     ao_pins (optional): A list of 1D arrays. ao_pins[i] specifies the array of analog output pins to use for controllers[i]. The total
     number of analog output pins must equal the number of cells. If ao_pins is None, pins 0-7 are used for each controller starting
@@ -52,7 +52,7 @@ def construct_cells(cell_num_array, cell_trans_array=None, controllers=None, ao_
     for i in range(N_cells):
         cell = Cell()
         cell.no = int(cell_nos[i])
-        cell.coords = np.argwhere(cell_num_array==cell.no)[0]
+        cell.coords = np.nonzero(cell_num_array==cell.no) # np.argwhere(cell_num_array==cell.no)[0]
         cell.trans_cell_no = int(cell_trans_array[np.nonzero(cell_num_array==cell.no)][0])
         cell.idx = int(cell.trans_cell_no - 1)
         cell.ao_pin = int(flat_ao_pins[cell.idx])
@@ -61,9 +61,13 @@ def construct_cells(cell_num_array, cell_trans_array=None, controllers=None, ao_
         cell.ifunc = np.array([])
         cell.rms = -1.
         cell.pv = -1.
+        cell.pvq = -1.
+        cell.pvr = -1.
         cell.maxInd = np.array([])
         cell.boxCoords = np.array([])
-        cell.short_cell_no = -1.
+        cell.deadCell = False
+        cell.short_cell_nos = np.array([])
+        cell.short_volts = np.array([])
         cell.voltage = None
         cell.volt_hist = []
         cell.gnd_voltMap = np.array([])
@@ -72,6 +76,7 @@ def construct_cells(cell_num_array, cell_trans_array=None, controllers=None, ao_
         cell.gnd_figMap = np.array([])
         cell.high_figMap = np.array([])
         cell.figMap = np.array([])
+        cell.badIF = False
         cell.no_array = cell_num_array
         cell.trans_no_array = cell_trans_array
         cells.append(cell)
@@ -116,7 +121,7 @@ def print_cells_info(cells):
         print('-'*dash_num+'Location'+'-'*dash_num)
         print('Coords: {}, Index: {}'.format(cell.coords, cell.idx))
         print('Translated cell #: {}'.format(cell.trans_cell_no))
-        print('maxInd:\n {}\nShorted Cell #: {}'.format(cell.maxInd, cell.short_cell_no))
+        print('maxInd:\n {}\nDead Cell: {}, Shorted Cell #: {}'.format(cell.maxInd, cell.deadCell, cell.short_cell_nos))
         print('-'*dash_num+'Control'+'-'*dash_num)
         print('CTRL: {}, AO: {}, AI: {}'.format(cell.cid, cell.ao_pin, cell.ai_pin))
         print('-'*dash_num+'IF'+'-'*dash_num)
@@ -129,8 +134,9 @@ class Cell:
     """
 
     def __init__(self):
+        self.idx = None # int, the index of the cell in the list of cells generated
         self.no = None # int, cell number
-        self.coords = None # np array, the coordinates to access self.no from cell_num_array
+        self.coords = None # tuple, the coordinates to access self.no from cell_num_array
         self.trans_cell_no = None # int, the translated cell number
         self.idx = None # int, the index of the translated cell number, self.idx = self.trans_cell_no - 1
         self.ao_pin = None # int, the analog output pin assigned to the cell
@@ -142,7 +148,9 @@ class Cell:
         self.pv = None # float, the peak-to-valley of self.ifunc
         self.maxInd = None # np array, [y_coord, x_coord], the coordinates to the centroid maximum of self.ifunc
         self.boxCoords = None # np array, the coordinates of the corners that form a box around the centroid of self.ifunc
-        self.short_cell_no = None # np array, the array of cell numbers that the cell is electrically shorted to
+        self.deadCell = False # bool, If the cell cannot maintain a voltage when assigned, badCell is True
+        self.short_cell_nos = None # np array, the array of cell numbers that the cell is electrically shorted to
+        self.short_volts = None # np array, the voltages read for short_cell_nos
         self.voltage = None # float, the current voltage of the cell
         self.volt_hist = None # list, list of floats that traces the history of the cell's voltage
         self.gnd_voltMap = None # np array, 2D array that represents the voltages of all cells
@@ -155,6 +163,8 @@ class Cell:
         self.high_figMap = None # np array, 2D array that represents the interferometer measurement of the cell 
                                 # when cell was energized
         self.figMap = None # np array, 2D array that represents an arbitrary interferometer measurement
+        self.dx = None # float, the pixel spacing in mm/pix of self.gnd_figMap, self.high_figMap, and self.figMap
+        self.badIF = None # bool, determines whether the IF that was measured is observable
         self.no_array = None # np array, the cell_num_array that was passed when construct_cells() was used to create the cells
         self.trans_no_array = None # np array, the cell_trans_array that was passed when construct_cells() was used to create the cells
 
@@ -188,7 +198,7 @@ def validate_controllers(controllers, N_cells):
         else:
             return [i for i in range(1, N_ctrl_req+1)]
     else:
-        controller_IDs = list(ctrl.controller_IP_addresses.keys())
+        controller_IDs = list(ctrl.controllers.keys())
         for ID in controllers:
             if ID not in controller_IDs:
                 raise CellError('Controller: {} not in list of known controllers: {}'.format(ID, controller_IDs))

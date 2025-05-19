@@ -1,7 +1,11 @@
+"""
+Controls setting and reading analog voltages using controllers.
+"""
+
 from axroGalil.controllers import controllers as ctrl
 from axroGalil.controllers import ao_min_v, ao_max_v, ao_pins
 from axroGalil.controllers import ai_min_v, ai_max_v, ai_pins
-from axroGalil.controllers import model
+#from axroGalil.controllers import model
 from axroGalil.controllers import vranges as hardware_vranges
 import gclib
 import numpy as np
@@ -10,7 +14,7 @@ import time
 
 min_v_allowed = ao_min_v # minimum voltage that can be outputted by an ao pin
 max_v_allowed = ao_max_v # maximum voltage that can be outputted by an ao pin
-write_read_delay = 0.5 # seconds, the time it takes after setting a voltage to accurately read it back
+write_read_delay = 0.125 # seconds, the time it takes after setting a voltage to accurately read it back
 
 ################ CELL CONTROL FUNCTIONS ################
 

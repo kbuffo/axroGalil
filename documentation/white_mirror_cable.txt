@@ -1,0 +1,11 @@
+Hi Sam,
+
+Could you please make 2 more of these cables when you get a chance?
+
+One row is AO channels, the other is AI channels.
+The white paint marks AO0/AI0 and channels increase sequentially from there.
+The side with the latch should be AI pins, the opposite side should be AO pins.
+
+Also, do you have a file? If so, could you file the female side of the connectors so that they all seat adjacent to one another a set of pin headers? Right now, I have trouble plugging two female ends next to each other without the black plastic getting in the way.
+
+Thank you so much! If you have any questions, you can email me at kbuffo@uiowa.edu
